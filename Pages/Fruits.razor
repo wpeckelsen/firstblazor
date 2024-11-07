@@ -1,0 +1,151 @@
+@using firstblazor.Models
+@using firstblazor.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject IJSRuntime JSRuntime
+
+
+@page "/fruits"
+@inject FruitService FruitService
+
+
+<Title>Fruits</Title>
+<h1>All Fruits</h1>
+
+<p>Add a new fruit</p>
+<button @onclick="ShowAlertFromBlazor">show JS aler</button>
+
+
+
+<EditForm Model="@newFruit" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="fruitName">Fruit Name:</label>
+        <InputText id="fruitName" class="form-control" @bind-Value="newFruit.fruitName" />
+
+    </div>
+
+    <div class="form-group">
+        <label for="fruitColor">Fruit Color:</label>
+        <InputText id="fruitColor" class="form-control" @bind-Value="newFruit.fruitColor" />
+    </div>
+    <div class="form-group">
+        <label for="fruitWeight">Fruit Weight:</label>
+        <InputNumber id="fruitWeight" class="form-control" @bind-Value="newFruit.fruitWeight" />
+    </div>
+
+
+
+    <button type="submit" class="btn btn-primary" disabled="@isSubmitting"> @buttonText
+    </button>
+</EditForm>
+
+
+
+
+@if (fruitEntries == null)
+{
+    <p>loading...</p>
+}
+else
+{
+    <table class="table">
+    <thead>
+        <tr>
+            <th>Fruit ID</th>
+            <th>Fruit Name</th>
+            <th>Fruit Color</th>
+            <th>Fruit Weight</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var fruitEntry in fruitEntries)
+            {
+                <tr>
+                    <td>@fruitEntry.fruitId</td>
+                    <td>@fruitEntry.fruitName</td>
+                    <td>@fruitEntry.fruitColor</td>
+                    <td>@fruitEntry.fruitWeight</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+@code {
+
+    private List<Fruit> fruitEntries;
+
+    protected override async Task OnInitializedAsync()
+    {
+        fruitEntries = await FruitService.GetAllFruitsAsync();
+    }
+
+    private async Task ShowAlertFromBlazor()
+    {
+        await JSRuntime.InvokeVoidAsync("showAlert", "This is an alert from Blazor!");
+    }
+
+
+    private bool isSubmitting = false;
+    private string buttonText = "Add Fruit";
+
+    private Fruit newFruit = new Fruit();
+    private System.Timers.Timer buttonTimer;
+
+    private void controlTimer()
+    {
+        if (buttonTimer == null)
+        {
+            buttonTimer = new System.Timers.Timer(2000); // ticks for 2 seconds
+            buttonTimer.AutoReset = false;
+            buttonTimer.Elapsed += OnTimerElapsed;
+
+
+        }
+        buttonTimer.Start();
+    }
+
+    private async void OnTimerElapsed(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        await InvokeAsync(() =>
+        {
+            buttonText = "Add Fruit";
+            StateHasChanged();
+        });
+        buttonTimer.Stop();
+    }
+
+
+
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            isSubmitting = true;
+            buttonText = "Fruit Submitted!";
+            await FruitService.CreateFruitAsync(newFruit);
+            newFruit = new Fruit(); //reset fields
+            fruitEntries = await FruitService.GetAllFruitsAsync();
+            // after sendimg a post request, make a new request to see updated list of fruits
+            controlTimer();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+
+
+
+
+
+
+
+}
